@@ -86,6 +86,8 @@ jobs:
   build-linux-x86_64:
     runs-on: ubuntu-22.04
     container: ubuntu:20.04
+    env:
+      DEBIAN_FRONTEND: noninteractive
     steps:
       - name: Install basic tools and dependencies
         run: |
