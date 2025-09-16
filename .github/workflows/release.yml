@@ -84,8 +84,22 @@ jobs:
         run: release/test_client.sh
 
   build-linux-x86_64:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
+    container: ubuntu:20.04
     steps:
+      - name: Install basic tools and dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+             git wget curl ca-certificates xz-utils unzip \
+             build-essential pkg-config meson ninja-build nasm \
+             autoconf automake libtool \
+             zlib1g-dev \
+             ffmpeg libsdl2-2.0-0 libsdl2-dev \
+             libavcodec-dev libavdevice-dev libavformat-dev libavutil-dev \
+             libswresample-dev libusb-1.0-0 libusb-1.0-0-dev libv4l-dev \
+             libdigest-sha-perl
+
       - name: Check architecture
         run: |
             arch=$(uname -m)
@@ -97,14 +111,6 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y meson ninja-build nasm ffmpeg libsdl2-2.0-0 \
-             libsdl2-dev libavcodec-dev libavdevice-dev libavformat-dev \
-             libavutil-dev libswresample-dev libusb-1.0-0 libusb-1.0-0-dev \
-             libv4l-dev
 
       - name: Build
         run: release/build_linux.sh x86_64
