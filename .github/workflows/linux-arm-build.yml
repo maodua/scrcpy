@@ -29,9 +29,8 @@ jobs:
   build-linux-aarch64:
     name: Build Linux aarch64 client
     # GitHub-hosted ARM64 runner
-    runs-on: ubuntu-22.04-arm64
-    # Multi-arch image; on ARM64 runner this pulls the arm64 variant
-    container: ubuntu:20.04
+    runs-on: ubuntu-22.04-arm
+    container: ubuntu:18.04
     needs: [build-scrcpy-server]
     env:
       DEBIAN_FRONTEND: noninteractive
@@ -68,6 +67,17 @@ jobs:
 
       - name: Build client
         run: release/build_linux.sh aarch64
+
+      - name: Verify required GLIBC version (<= 2.28)
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends binutils
+          BIN=release/work/build-linux-aarch64/app/scrcpy
+          req=$(objdump -T "$BIN" | sed -n 's/.*GLIBC_\([0-9\.]*\).*/\1/p' | sort -V | tail -n1 || true)
+          echo "Detected required GLIBC: ${req:-unknown}"
+          if [ -n "$req" ] && dpkg --compare-versions "$req" gt 2.28; then
+            echo "Error: required GLIBC ($req) > 2.28" >&2
+            exit 1
+          fi
 
       - name: Download scrcpy-server
         uses: actions/download-artifact@v4
