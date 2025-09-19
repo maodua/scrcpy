@@ -13,6 +13,17 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive
     steps:
+      - name: Fix APT sources (Debian 10 EOL)
+        run: |
+          set -eux
+          cat >/etc/apt/sources.list <<'EOF'
+          deb http://archive.debian.org/debian buster main contrib non-free
+          deb http://archive.debian.org/debian-security buster/updates main contrib non-free
+          deb http://archive.debian.org/debian buster-updates main contrib non-free
+          EOF
+          echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
+          apt-get -o Acquire::Check-Valid-Until=false update
+
       - name: Install basic tools and dependencies
         run: |
           apt-get update
