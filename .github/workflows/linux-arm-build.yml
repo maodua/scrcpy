@@ -1,5 +1,6 @@
-# 构建 linux arm64 版本的包，需要支持 GLIBC_2.28
-# container: ubuntu:20.04 构建出来最低的 GLIBC 版本是 2.29
+# 构建 linux arm64 版本的包，需要兼容 GLIBC_2.28
+# 使用 Debian 10 (buster) 作为容器基础镜像，可确保生成二进制最低 GLIBC 需求为 2.28。
+# 若使用 Ubuntu 20.04，glibc 为 2.31，无法满足 GLIBC_2.28 的目标。
 name: Linux Build ARM
 
 on:
@@ -8,7 +9,7 @@ on:
 jobs:
   build-linux-aarch64:
     runs-on: ubuntu-22.04-arm
-    container: ubuntu:18.04
+    container: debian:10
     env:
       DEBIAN_FRONTEND: noninteractive
     steps:
@@ -30,11 +31,15 @@ jobs:
       - name: Check architecture
         run: |
             arch=$(uname -m)
-            if [[ "$arch" != aarch64 && "$arch" != arm64 ]]
+            if [[ "$arch" != "aarch64" && "$arch" != "arm64" ]]
             then
                 echo "Unexpected architecture: $arch" >&2
                 exit 1
             fi
+
+      - name: Check GLIBC version
+        run: |
+          ldd --version | head -n1 || true
 
       - name: Checkout code
         uses: actions/checkout@v4
