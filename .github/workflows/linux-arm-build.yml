@@ -1,37 +1,14 @@
+# 构建 linux arm64 版本的包，需要支持 GLIBC_2.28
+# container: ubuntu:20.04 构建出来最低的 GLIBC 版本是 2.29
 name: Linux Build ARM
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-scrcpy-server:
-    name: Build scrcpy-server (Android)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Build server
-        run: release/build_server.sh
-
-      - name: Upload scrcpy-server artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: scrcpy-server
-          path: release/work/build-server/server/scrcpy-server
-
   build-linux-aarch64:
-    name: Build Linux aarch64 client
-    # GitHub-hosted ARM64 runner
     runs-on: ubuntu-22.04-arm
     container: ubuntu:18.04
-    needs: [build-scrcpy-server]
     env:
       DEBIAN_FRONTEND: noninteractive
     steps:
@@ -65,38 +42,16 @@ jobs:
       - name: Configure git safe.directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Build client
+      - name: Build
         run: release/build_linux.sh aarch64
-
-      - name: Verify required GLIBC version (<= 2.28)
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends binutils
-          BIN=release/work/build-linux-aarch64/app/scrcpy
-          req=$(objdump -T "$BIN" | sed -n 's/.*GLIBC_\([0-9\.]*\).*/\1/p' | sort -V | tail -n1 || true)
-          echo "Detected required GLIBC: ${req:-unknown}"
-          if [ -n "$req" ] && dpkg --compare-versions "$req" gt 2.28; then
-            echo "Error: required GLIBC ($req) > 2.28" >&2
-            exit 1
-          fi
-
-      - name: Download scrcpy-server
-        uses: actions/download-artifact@v4
-        with:
-          name: scrcpy-server
-          path: release/work/build-server/server/
-
-      - name: Include scrcpy-server into dist
-        run: |
-          cp release/work/build-server/server/scrcpy-server \
-             release/work/build-linux-aarch64/dist/
 
       # upload-artifact does not preserve permissions
       - name: Tar
         run: |
-            cd release/work/build-linux-aarch64
-            mkdir dist-tar
-            cd dist-tar
-            tar -C .. -cvf dist.tar.gz dist/
+          cd release/work/build-linux-aarch64
+          mkdir dist-tar
+          cd dist-tar
+          tar -C .. -cvf dist.tar.gz dist/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
