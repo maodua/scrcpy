@@ -1,0 +1,76 @@
+name: Linux Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-linux-x86_64:
+    runs-on: ubuntu-22.04
+    container: debian:10
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Fix APT sources (Debian 10 EOL)
+        run: |
+          set -eux
+          cat >/etc/apt/sources.list <<'EOF'
+          deb http://archive.debian.org/debian buster main contrib non-free
+          deb http://archive.debian.org/debian-security buster/updates main contrib non-free
+          deb http://archive.debian.org/debian buster-updates main contrib non-free
+          EOF
+          echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
+          apt-get -o Acquire::Check-Valid-Until=false update
+
+      - name: Install basic tools and dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+             git wget curl ca-certificates xz-utils unzip \
+             build-essential pkg-config meson ninja-build nasm \
+             autoconf automake libtool python3 python3-pip \
+             zlib1g-dev libjpeg-dev libudev-dev \
+             ffmpeg libsdl2-2.0-0 libsdl2-dev \
+             libavcodec-dev libavdevice-dev libavformat-dev libavutil-dev \
+             libswresample-dev libusb-1.0-0 libusb-1.0-0-dev \
+             libv4l-0 libv4l-dev libv4lconvert0 \
+             libdigest-sha-perl
+
+      - name: Upgrade meson to support --pkg-config-path
+        run: |
+          pip3 install --no-cache-dir -U meson
+
+      - name: Check architecture
+        run: |
+            arch=$(uname -m)
+            if [[ "$arch" != "x86_64" ]]
+            then
+                echo "Unexpected architecture: $arch" >&2
+                exit 1
+            fi
+
+      - name: Check GLIBC version
+        run: |
+          ldd --version | head -n1 || true
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure git safe.directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build
+        run: release/build_linux.sh x86_64
+
+      # upload-artifact does not preserve permissions
+      - name: Tar
+        run: |
+            cd release/work/build-linux-x86_64
+            mkdir dist-tar
+            cd dist-tar
+            tar -C .. -cvf dist.tar.gz dist/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-linux-x86_64-intermediate
+          path: release/work/build-linux-x86_64/dist-tar/
