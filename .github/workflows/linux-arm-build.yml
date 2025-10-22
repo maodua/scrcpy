@@ -12,9 +12,6 @@ jobs:
     container: debian:8
     env:
       DEBIAN_FRONTEND: noninteractive
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-      ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: 16
-      ACTIONS_RUNNER_NODE_PATH: /opt/node16/bin/node
     steps:
       - name: Fix APT sources (Debian 8 EOL)
         run: |
@@ -43,19 +40,6 @@ jobs:
              libv4l-0 libv4l-dev libv4lconvert0 \
              libdigest-sha-perl
 
-      - name: Install Node runtime for actions
-        run: |
-          set -eux
-          NODE_VERSION=16.20.2
-          ARCH=linux-arm64
-          INSTALL_DIR=/opt/node16
-          mkdir -p "$INSTALL_DIR"
-          cd /tmp
-          wget -q "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${ARCH}.tar.xz"
-          tar -xf "node-v${NODE_VERSION}-${ARCH}.tar.xz"
-          rm -rf "$INSTALL_DIR"/*
-          cp -a "node-v${NODE_VERSION}-${ARCH}/." "$INSTALL_DIR/"
-          echo "$INSTALL_DIR/bin" >> $GITHUB_PATH
       - name: Build Python 3.5 from source
         run: |
           set -eux
@@ -95,7 +79,15 @@ jobs:
           ldd --version | head -n1 || true
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          git init
+          git remote add origin "https://oauth2:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}"
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
+          git remote remove origin
 
       - name: Configure git safe.directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
