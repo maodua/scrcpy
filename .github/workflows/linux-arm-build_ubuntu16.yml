@@ -17,22 +17,23 @@ jobs:
         run: |
           set -eux
           cat >/etc/apt/sources.list <<'EOF'
-          deb http://old-releases.ubuntu.com/ubuntu/ xenial main restricted universe multiverse
-          deb http://old-releases.ubuntu.com/ubuntu/ xenial-updates main restricted universe multiverse
-          deb http://old-releases.ubuntu.com/ubuntu/ xenial-security main restricted universe multiverse
-          deb http://old-releases.ubuntu.com/ubuntu/ xenial-backports main restricted universe multiverse
+          deb http://old-releases.ubuntu.com/ubuntu xenial main restricted universe multiverse
+          deb http://old-releases.ubuntu.com/ubuntu xenial-updates main restricted universe multiverse
+          deb http://old-releases.ubuntu.com/ubuntu xenial-security main restricted universe multiverse
+          deb http://old-releases.ubuntu.com/ubuntu xenial-backports main restricted universe multiverse
           EOF
           cat >/etc/apt/apt.conf.d/99legacy-ubuntu <<'EOF'
           Acquire::Check-Valid-Until "false";
           Acquire::AllowInsecureRepositories "true";
-          Acquire::CompressionTypes::Order:: "gz";
+          Acquire::CompressionTypes::Order { "gz"; "xz"; };
+          APT::Get::AllowUnauthenticated "true";
           EOF
-          apt-get -o Acquire::Check-Valid-Until=false -o Acquire::AllowInsecureRepositories=true -o Acquire::CompressionTypes::Order::=gz update
+          apt-get -o Acquire::Check-Valid-Until=false -o Acquire::AllowInsecureRepositories=true -o APT::Get::AllowUnauthenticated=true update
 
       - name: Install basic tools and dependencies
         run: |
-          apt-get -o Acquire::Check-Valid-Until=false -o Acquire::AllowInsecureRepositories=true -o Acquire::CompressionTypes::Order::=gz update
-          apt-get install -y --no-install-recommends \
+          apt-get -o Acquire::Check-Valid-Until=false -o Acquire::AllowInsecureRepositories=true -o APT::Get::AllowUnauthenticated=true update
+          apt-get install -y --no-install-recommends --allow-unauthenticated \
              git wget curl ca-certificates xz-utils unzip \
              build-essential pkg-config meson ninja-build nasm \
              autoconf automake libtool python3 python3-pip \
