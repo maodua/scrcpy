@@ -17,10 +17,10 @@ jobs:
         run: |
           set -eux
           cat >/etc/apt/sources.list <<'EOF'
-          deb http://old-releases.ubuntu.com/ubuntu xenial main restricted universe multiverse
-          deb http://old-releases.ubuntu.com/ubuntu xenial-updates main restricted universe multiverse
-          deb http://old-releases.ubuntu.com/ubuntu xenial-security main restricted universe multiverse
-          deb http://old-releases.ubuntu.com/ubuntu xenial-backports main restricted universe multiverse
+          deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports xenial main restricted universe multiverse
+          deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports xenial-updates main restricted universe multiverse
+          deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports xenial-security main restricted universe multiverse
+          deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports xenial-backports main restricted universe multiverse
           EOF
           cat >/etc/apt/apt.conf.d/99legacy-ubuntu <<'EOF'
           Acquire::Check-Valid-Until "false";
@@ -28,6 +28,14 @@ jobs:
           Acquire::CompressionTypes::Order { "gz"; "xz"; };
           APT::Get::AllowUnauthenticated "true";
           EOF
+          if ! command -v wget >/dev/null 2>&1; then
+              apt-get -o Acquire::Check-Valid-Until=false -o Acquire::AllowInsecureRepositories=true -o APT::Get::AllowUnauthenticated=true update
+              apt-get install -y --no-install-recommends --allow-unauthenticated wget ca-certificates
+          fi
+          if ! wget --spider --timeout=10 --tries=3 https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports/dists/xenial/main/binary-arm64/Packages.gz; then
+              echo "Mirror availability check failed" >&2
+              exit 1
+          fi
           apt-get -o Acquire::Check-Valid-Until=false -o Acquire::AllowInsecureRepositories=true -o APT::Get::AllowUnauthenticated=true update
 
       - name: Install basic tools and dependencies
