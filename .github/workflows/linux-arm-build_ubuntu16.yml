@@ -54,7 +54,7 @@ jobs:
 
       - name: Upgrade meson to support --pkg-config-path
         run: |
-          pip3 install --no-cache-dir -U meson
+          pip3 install --no-cache-dir 'meson==0.55.3'
 
 
       - name: Check architecture
