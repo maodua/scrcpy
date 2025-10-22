@@ -109,8 +109,51 @@ jobs:
           cd dist-tar
           tar -C .. -cvf dist.tar.gz dist/
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: build-linux-aarch64-intermediate
-          path: release/work/build-linux-aarch64/dist-tar/
+      - name: Publish artifact branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          ARTIFACT_DIR="release/work/build-linux-aarch64/dist-tar"
+          ARTIFACT_SRC="${ARTIFACT_DIR}/dist.tar.gz"
+          if [ ! -f "${ARTIFACT_SRC}" ]; then
+            echo "artifact dist.tar.gz not found in ${ARTIFACT_DIR}" >&2
+            ls -al "${ARTIFACT_DIR}" || true
+            exit 1
+          fi
+
+          BRANCH_NAME="artifacts/linux-arm-build_ubuntu16"
+          FILE_NAME="linux-arm-build_ubuntu16-${GITHUB_RUN_ID}.tar.gz"
+          WORK_DIR="$(mktemp -d)"
+
+          cp "${ARTIFACT_SRC}" "${WORK_DIR}/${FILE_NAME}"
+          cd "${WORK_DIR}"
+          git init
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git remote add origin "https://oauth2:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}"
+          if git ls-remote --exit-code origin "${BRANCH_NAME}" >/dev/null 2>&1; then
+            git fetch origin "${BRANCH_NAME}"
+            git checkout -B "${BRANCH_NAME}" "origin/${BRANCH_NAME}"
+          else
+            git checkout -B "${BRANCH_NAME}"
+          fi
+
+          TARGET_DIR="artifacts/linux-arm-build_ubuntu16"
+          mkdir -p "${TARGET_DIR}"
+          mv "${FILE_NAME}" "${TARGET_DIR}/${FILE_NAME}"
+          git add "${TARGET_DIR}/${FILE_NAME}"
+          git commit -m "Add linux-arm-build_ubuntu16 artifact for run ${GITHUB_RUN_ID}"
+          git push origin "${BRANCH_NAME}"
+
+          ARTIFACT_URL="https://github.com/${GITHUB_REPOSITORY}/blob/${BRANCH_NAME}/${TARGET_DIR}/${FILE_NAME}"
+          echo "Artifact committed to ${ARTIFACT_URL}"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            {
+              echo "### Linux ARM (Ubuntu 16.04) 构建产物"
+              echo ""
+              echo "- 分支：\`${BRANCH_NAME}\`"
+              echo "- 文件：\`${TARGET_DIR}/${FILE_NAME}\`"
+              echo "- 链接：${ARTIFACT_URL}"
+            } >> "${GITHUB_STEP_SUMMARY}"
+          fi
