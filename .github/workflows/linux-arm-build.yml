@@ -50,16 +50,19 @@ jobs:
           wget -q https://www.python.org/ftp/python/${PY_VER}/Python-${PY_VER}.tgz
           tar xf Python-${PY_VER}.tgz
           cd Python-${PY_VER}
-          ./configure --prefix="$PREFIX"
+          export CPPFLAGS="-I/usr/include"
+          export LDFLAGS="-Wl,-rpath,$PREFIX/lib"
+          ./configure --prefix="$PREFIX" --with-system-ffi --enable-shared
           make -j"$(nproc)"
           make install
           echo "PATH=$PREFIX/bin:$PATH" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$PREFIX/lib:${LD_LIBRARY_PATH:-}" >> $GITHUB_ENV
 
       - name: Install Python 3.5 toolchain and meson
         run: |
-          python3.5 -m ensurepip --default-pip || true
-          python3.5 -m pip install --upgrade 'pip<21' 'setuptools<50' 'wheel<0.35'
-          python3.5 -m pip install 'meson==0.55.3'
+          /opt/python3.5/bin/python3.5 -m ensurepip --default-pip || true
+          /opt/python3.5/bin/python3.5 -m pip install --upgrade 'pip<21' 'setuptools<50' 'wheel<0.35'
+          /opt/python3.5/bin/python3.5 -m pip install 'meson==0.55.3'
 
 
       - name: Check architecture
