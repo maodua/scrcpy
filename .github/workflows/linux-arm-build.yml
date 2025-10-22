@@ -38,9 +38,10 @@ jobs:
              libv4l-0 libv4l-dev libv4lconvert0 \
              libdigest-sha-perl
 
-      - name: Upgrade meson to support --pkg-config-path
+      - name: Upgrade pip and meson
         run: |
-          pip3 install --no-cache-dir -U meson
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --upgrade meson
 
 
       - name: Check architecture
