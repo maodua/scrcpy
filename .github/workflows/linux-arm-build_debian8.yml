@@ -40,15 +40,22 @@ jobs:
              libv4l-0 libv4l-dev libv4lconvert0 \
              libdigest-sha-perl
 
-      - name: Install newer GCC from backports
+      - name: Build GCC 8 from source
         run: |
           set -eux
-          apt-get -o Acquire::Check-Valid-Until=false -o Acquire::AllowInsecureRepositories=true update
-          apt-get install -y --no-install-recommends --allow-unauthenticated -t jessie-backports gcc-6 g++-6
-          update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 60
-          update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 60
-          echo "CC=gcc-6" >> $GITHUB_ENV
-          echo "CXX=g++-6" >> $GITHUB_ENV
+          GCC_VER=8.3.0
+          PREFIX=/opt/gcc-${GCC_VER}
+          cd /tmp
+          wget -q https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VER}/gcc-${GCC_VER}.tar.xz
+          tar xf gcc-${GCC_VER}.tar.xz
+          cd gcc-${GCC_VER}
+          ./contrib/download_prerequisites
+          mkdir build && cd build
+          ../configure --prefix=${PREFIX} --enable-languages=c,c++ --disable-multilib
+          make -j"$(nproc)"
+          make install
+          ln -sf ${PREFIX}/bin/gcc /usr/local/bin/gcc
+          ln -sf ${PREFIX}/bin/g++ /usr/local/bin/g++
           gcc --version
           g++ --version
 
