@@ -1,0 +1,86 @@
+# 构建 linux arm64 版本的包，需要兼容 GLIBC_2.23
+# 使用 Ubuntu 16.04 (xenial) 作为容器基础镜像，可确保生成二进制最低 GLIBC 需求为 2.23。
+# 若使用 Ubuntu 20.04，glibc 为 2.31，无法满足 GLIBC_2.23 的目标。
+name: Linux Build ARM (Ubuntu 16.04 V2)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-linux-aarch64:
+    runs-on: ubuntu-22.04-arm
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure git safe.directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build inside Ubuntu 16.04 container
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -e DEBIAN_FRONTEND=noninteractive \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            ubuntu:16.04 \
+            bash - <<'EOS'
+          set -eux
+          cat >/etc/apt/sources.list <<'EOF'
+          deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports xenial main restricted universe multiverse
+          deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports xenial-updates main restricted universe multiverse
+          deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports xenial-security main restricted universe multiverse
+          deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports xenial-backports main restricted universe multiverse
+          EOF
+          cat >/etc/apt/apt.conf.d/99legacy-ubuntu <<'EOF'
+          Acquire::Check-Valid-Until "false";
+          Acquire::AllowInsecureRepositories "true";
+          Acquire::CompressionTypes::Order { "gz"; "xz"; };
+          APT::Get::AllowUnauthenticated "true";
+          EOF
+          APT_ARGS='-o Acquire::Check-Valid-Until=false -o Acquire::AllowInsecureRepositories=true -o APT::Get::AllowUnauthenticated=true'
+          apt-get ${APT_ARGS} update
+          apt-get ${APT_ARGS} install -y --no-install-recommends --allow-unauthenticated \
+             git wget curl ca-certificates xz-utils unzip \
+             build-essential pkg-config meson ninja-build nasm \
+             autoconf automake libtool python3 python3-pip \
+             python3-setuptools python3-wheel \
+             zlib1g-dev libjpeg-dev libudev-dev \
+             ffmpeg libsdl2-2.0-0 libsdl2-dev \
+             libavcodec-dev libavdevice-dev libavformat-dev libavutil-dev \
+             libswresample-dev libusb-1.0-0 libusb-1.0-0-dev \
+             libv4l-0 libv4l-dev libv4lconvert0 \
+             libdigest-sha-perl
+          wget --spider --timeout=10 --tries=3 https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports/dists/xenial/main/binary-arm64/Packages.gz
+          pip3 install --no-cache-dir 'pip<21' 'setuptools<50' 'wheel<0.35'
+          pip3 install --no-cache-dir 'meson==0.55.3'
+          NINJA_VERSION=1.11.1
+          cd /tmp
+          wget -q "https://github.com/ninja-build/ninja/archive/refs/tags/v${NINJA_VERSION}.tar.gz"
+          tar xf "v${NINJA_VERSION}.tar.gz"
+          cd "ninja-${NINJA_VERSION}"
+          python3 configure.py --bootstrap
+          install -m 755 ninja /usr/local/bin/ninja
+          ninja --version
+          cd /
+          arch=$(uname -m)
+          if [[ "$arch" != "aarch64" && "$arch" != "arm64" ]]; then
+              echo "Unexpected architecture: $arch" >&2
+              exit 1
+          fi
+          ldd --version | head -n1 || true
+          cd /workspace
+          git config --global --add safe.directory /workspace
+          release/build_linux.sh aarch64
+          cd /workspace/release/work/build-linux-aarch64
+          mkdir -p dist-tar
+          cd dist-tar
+          tar -C .. -cvf dist.tar.gz dist/
+          EOS
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-linux-aarch64-intermediate
+          path: release/work/build-linux-aarch64/dist-tar/
