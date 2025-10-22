@@ -33,13 +33,27 @@ jobs:
              build-essential pkg-config ninja-build nasm \
              autoconf automake libtool python3 python3-pip python3-setuptools python3-wheel \
              zlib1g-dev libjpeg-dev libudev-dev \
+             libssl-dev libffi-dev libbz2-dev libreadline-dev libsqlite3-dev libncursesw5-dev liblzma-dev \
              libsdl2-2.0-0 libsdl2-dev \
              libavcodec-dev libavdevice-dev libavformat-dev libavutil-dev \
              libusb-1.0-0 libusb-1.0-0-dev \
              libv4l-0 libv4l-dev libv4lconvert0 \
              libdigest-sha-perl
-          apt-get install -y --no-install-recommends --allow-unauthenticated -t jessie-backports \
-             python3.5 python3.5-dev python3.5-venv
+
+      - name: Build Python 3.5 from source
+        run: |
+          set -eux
+          PY_VER=3.5.10
+          PREFIX=/opt/python3.5
+          mkdir -p /tmp/python-build
+          cd /tmp/python-build
+          wget -q https://www.python.org/ftp/python/${PY_VER}/Python-${PY_VER}.tgz
+          tar xf Python-${PY_VER}.tgz
+          cd Python-${PY_VER}
+          ./configure --prefix="$PREFIX"
+          make -j"$(nproc)"
+          make install
+          echo "PATH=$PREFIX/bin:$PATH" >> $GITHUB_ENV
 
       - name: Install Python 3.5 toolchain and meson
         run: |
