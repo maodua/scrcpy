@@ -1,0 +1,81 @@
+# 构建 linux arm64 版本的包，需要兼容 GLIBC_2.23
+# 使用 Ubuntu 16.04 (xenial) 作为容器基础镜像，可确保生成二进制最低 GLIBC 需求为 2.23。
+# 若使用 Ubuntu 20.04，glibc 为 2.31，无法满足 GLIBC_2.23 的目标。
+name: Linux Build ARM (Ubuntu 16.04)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-linux-aarch64:
+    runs-on: ubuntu-22.04-arm
+    container: ubuntu:16.04
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Fix APT sources (Ubuntu 16.04 EOL)
+        run: |
+          set -eux
+          cat >/etc/apt/sources.list <<'EOF'
+          deb http://old-releases.ubuntu.com/ubuntu/ xenial main restricted universe multiverse
+          deb http://old-releases.ubuntu.com/ubuntu/ xenial-updates main restricted universe multiverse
+          deb http://old-releases.ubuntu.com/ubuntu/ xenial-security main restricted universe multiverse
+          deb http://old-releases.ubuntu.com/ubuntu/ xenial-backports main restricted universe multiverse
+          EOF
+          echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
+          apt-get -o Acquire::Check-Valid-Until=false update
+
+      - name: Install basic tools and dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+             git wget curl ca-certificates xz-utils unzip \
+             build-essential pkg-config meson ninja-build nasm \
+             autoconf automake libtool python3 python3-pip \
+             zlib1g-dev libjpeg-dev libudev-dev \
+             ffmpeg libsdl2-2.0-0 libsdl2-dev \
+             libavcodec-dev libavdevice-dev libavformat-dev libavutil-dev \
+             libswresample-dev libusb-1.0-0 libusb-1.0-0-dev \
+             libv4l-0 libv4l-dev libv4lconvert0 \
+             libdigest-sha-perl
+
+      - name: Upgrade meson to support --pkg-config-path
+        run: |
+          pip3 install --no-cache-dir -U meson
+
+
+      - name: Check architecture
+        run: |
+            arch=$(uname -m)
+            if [[ "$arch" != "aarch64" && "$arch" != "arm64" ]]
+            then
+                echo "Unexpected architecture: $arch" >&2
+                exit 1
+            fi
+
+      - name: Check GLIBC version
+        run: |
+          ldd --version | head -n1 || true
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure git safe.directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build
+        run: release/build_linux.sh aarch64
+
+      # upload-artifact does not preserve permissions
+      - name: Tar
+        run: |
+          cd release/work/build-linux-aarch64
+          mkdir dist-tar
+          cd dist-tar
+          tar -C .. -cvf dist.tar.gz dist/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-linux-aarch64-intermediate
+          path: release/work/build-linux-aarch64/dist-tar/
