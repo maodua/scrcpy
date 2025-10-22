@@ -12,6 +12,7 @@ jobs:
     container: debian:8
     env:
       DEBIAN_FRONTEND: noninteractive
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
       - name: Fix APT sources (Debian 8 EOL)
         run: |
@@ -79,7 +80,7 @@ jobs:
           ldd --version | head -n1 || true
 
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure git safe.directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -96,7 +97,7 @@ jobs:
           tar -C .. -cvf dist.tar.gz dist/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-linux-aarch64-intermediate
           path: release/work/build-linux-aarch64/dist-tar/
