@@ -34,7 +34,7 @@ jobs:
              zlib1g-dev libjpeg-dev libudev-dev \
              libsdl2-2.0-0 libsdl2-dev \
              libavcodec-dev libavdevice-dev libavformat-dev libavutil-dev \
-             libswresample-dev libusb-1.0-0 libusb-1.0-0-dev \
+             libusb-1.0-0 libusb-1.0-0-dev \
              libv4l-0 libv4l-dev libv4lconvert0 \
              libdigest-sha-perl
 
