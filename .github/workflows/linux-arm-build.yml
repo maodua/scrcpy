@@ -39,7 +39,16 @@ jobs:
              libusb-1.0-0 libusb-1.0-0-dev \
              libv4l-0 libv4l-dev libv4lconvert0 \
              libdigest-sha-perl
-
+      - name: Install modern Ninja
+        run: |
+          set -eux
+          NINJA_VERSION=1.11.1
+          ARCH=linux-aarch64
+          cd /tmp
+          wget -q "https://github.com/ninja-build/ninja/releases/download/v${NINJA_VERSION}/ninja-${ARCH}.zip"
+          unzip -o "ninja-${ARCH}.zip"
+          install -m 755 ninja /usr/local/bin/ninja
+          ninja --version
       - name: Build Python 3.5 from source
         run: |
           set -eux
