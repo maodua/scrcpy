@@ -44,18 +44,11 @@ jobs:
         run: |
           set -eux
           apt-get -o Acquire::Check-Valid-Until=false -o Acquire::AllowInsecureRepositories=true update
-          if apt-get install -y --no-install-recommends --allow-unauthenticated -t jessie-backports gcc-8 g++-8; then
-            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 80
-            update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 80
-            echo "CC=gcc-8" >> $GITHUB_ENV
-            echo "CXX=g++-8" >> $GITHUB_ENV
-          else
-            apt-get install -y --no-install-recommends --allow-unauthenticated -t jessie-backports gcc-7 g++-7
-            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70
-            update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 70
-            echo "CC=gcc-7" >> $GITHUB_ENV
-            echo "CXX=g++-7" >> $GITHUB_ENV
-          fi
+          apt-get install -y --no-install-recommends --allow-unauthenticated -t jessie-backports gcc-6 g++-6
+          update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 60
+          update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 60
+          echo "CC=gcc-6" >> $GITHUB_ENV
+          echo "CXX=g++-6" >> $GITHUB_ENV
           gcc --version
           g++ --version
 
