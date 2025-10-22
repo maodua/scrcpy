@@ -1,0 +1,114 @@
+# 构建 linux arm64 版本的包，需要兼容 GLIBC_2.19
+# 使用 Debian 8 (jessie) 作为容器基础镜像，可确保生成二进制最低 GLIBC 需求为 2.19。
+# 若使用 Ubuntu 20.04，glibc 为 2.31，无法满足 GLIBC_2.19 的目标。
+name: Linux Build ARM (Debian 8)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-linux-aarch64:
+    runs-on: ubuntu-22.04-arm
+    container: debian:8
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Fix APT sources (Debian 8 EOL)
+        run: |
+          set -eux
+          cat >/etc/apt/sources.list <<'EOF'
+          deb http://archive.debian.org/debian jessie main contrib non-free
+          deb http://archive.debian.org/debian-security jessie/updates main contrib non-free
+          deb http://archive.debian.org/debian jessie-backports main contrib non-free
+          EOF
+          echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
+          echo 'Acquire::AllowInsecureRepositories "true";' > /etc/apt/apt.conf.d/99allow-insecure
+          apt-get -o Acquire::Check-Valid-Until=false -o Acquire::AllowInsecureRepositories=true update
+
+      - name: Install basic tools and dependencies
+        run: |
+          apt-get -o Acquire::Check-Valid-Until=false -o Acquire::AllowInsecureRepositories=true update
+          apt-get install -y --no-install-recommends --allow-unauthenticated \
+             git wget curl ca-certificates xz-utils unzip \
+             build-essential pkg-config ninja-build nasm \
+             autoconf automake libtool python3 python3-pip python3-setuptools python3-wheel \
+             zlib1g-dev libjpeg-dev libudev-dev \
+             libssl-dev libffi-dev libbz2-dev libreadline-dev libsqlite3-dev libncursesw5-dev liblzma-dev \
+             libsdl2-2.0-0 libsdl2-dev \
+             libavcodec-dev libavdevice-dev libavformat-dev libavutil-dev \
+             libusb-1.0-0 libusb-1.0-0-dev \
+             libv4l-0 libv4l-dev libv4lconvert0 \
+             libdigest-sha-perl
+
+      - name: Build Python 3.5 from source
+        run: |
+          set -eux
+          PY_VER=3.5.10
+          PREFIX=/opt/python3.5
+          mkdir -p /tmp/python-build
+          cd /tmp/python-build
+          wget -q https://www.python.org/ftp/python/${PY_VER}/Python-${PY_VER}.tgz
+          tar xf Python-${PY_VER}.tgz
+          cd Python-${PY_VER}
+          export CPPFLAGS="-I/usr/include"
+          export LDFLAGS="-Wl,-rpath,$PREFIX/lib"
+          ./configure --prefix="$PREFIX" --with-system-ffi --enable-shared
+          make -j"$(nproc)"
+          make install
+          echo "PATH=$PREFIX/bin:$PATH" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$PREFIX/lib:${LD_LIBRARY_PATH:-}" >> $GITHUB_ENV
+
+      - name: Install Python 3.5 toolchain and meson
+        run: |
+          /opt/python3.5/bin/python3.5 -m ensurepip --default-pip || true
+          /opt/python3.5/bin/python3.5 -m pip install --upgrade 'pip<21' 'setuptools<50' 'wheel<0.35'
+          /opt/python3.5/bin/python3.5 -m pip install 'meson==0.55.3'
+
+      - name: Install Ninja via pip
+        run: |
+          /opt/python3.5/bin/python3.5 -m pip install 'ninja==1.11.1'
+          ninja --version
+
+      - name: Check architecture
+        run: |
+            arch=$(uname -m)
+            if [[ "$arch" != "aarch64" && "$arch" != "arm64" ]]
+            then
+                echo "Unexpected architecture: $arch" >&2
+                exit 1
+            fi
+
+      - name: Check GLIBC version
+        run: |
+          ldd --version | head -n1 || true
+
+      - name: Checkout code
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          git init
+          git remote add origin "https://oauth2:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}"
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
+          git remote remove origin
+
+      - name: Configure git safe.directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build
+        run: release/build_linux.sh aarch64
+
+      # upload-artifact does not preserve permissions
+      - name: Tar
+        run: |
+          cd release/work/build-linux-aarch64
+          mkdir dist-tar
+          cd dist-tar
+          tar -C .. -cvf dist.tar.gz dist/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-linux-aarch64-intermediate
+          path: release/work/build-linux-aarch64/dist-tar/
