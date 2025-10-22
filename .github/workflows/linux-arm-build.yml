@@ -42,8 +42,8 @@ jobs:
         run: |
           python3 -m ensurepip --default-pip || true
           python3 -m pip install --upgrade 'pip<19.2'
-          python3 -m pip install 'setuptools==44.1.1'
-          python3 -m pip install 'meson<0.54' --no-use-pep517
+          python3 -m pip install 'setuptools==43.0.0' 'wheel==0.34.2'
+          python3 -m pip install 'meson==0.50.1' --no-use-pep517
 
 
       - name: Check architecture
