@@ -1,7 +1,7 @@
 # 构建 linux arm64 版本的包，需要兼容 GLIBC_2.23
 # 使用 Ubuntu 16.04 (xenial) 作为容器基础镜像，可确保生成二进制最低 GLIBC 需求为 2.23。
 # 若使用 Ubuntu 20.04，glibc 为 2.31，无法满足 GLIBC_2.23 的目标。
-name: Linux Build ARM (Ubuntu 16.04 V2)
+name: Linux Build ARM (Ubuntu 16.04 v2)
 
 on:
   workflow_dispatch:
@@ -15,18 +15,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure git safe.directory
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Verify Docker availability
+        run: |
+          docker --version
 
       - name: Build inside Ubuntu 16.04 container
         run: |
-          docker run --rm --platform linux/arm64 \
+          set -eux
+          HOST_UID=$(id -u)
+          HOST_GID=$(id -g)
+          export HOST_UID HOST_GID
+          docker run --rm \
             -e DEBIAN_FRONTEND=noninteractive \
+            -e HOST_UID="$HOST_UID" \
+            -e HOST_GID="$HOST_GID" \
             -v "$PWD":/workspace \
             -w /workspace \
             ubuntu:16.04 \
-            bash - <<'EOS'
+            bash -eux <<'EOS'
           set -eux
+          export DEBIAN_FRONTEND=noninteractive
           cat >/etc/apt/sources.list <<'EOF'
           deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports xenial main restricted universe multiverse
           deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports xenial-updates main restricted universe multiverse
@@ -72,15 +80,23 @@ jobs:
           ldd --version | head -n1 || true
           cd /workspace
           git config --global --add safe.directory /workspace
+          rm -rf release/work/build-linux-aarch64
           release/build_linux.sh aarch64
           cd /workspace/release/work/build-linux-aarch64
-          mkdir -p dist-tar
+          rm -rf dist-tar
+          mkdir dist-tar
           cd dist-tar
           tar -C .. -cvf dist.tar.gz dist/
+          chown -R "${HOST_UID}:${HOST_GID}" /workspace/release/work/build-linux-aarch64
           EOS
+
+      - name: List packaged files
+        run: |
+          ls -al release/work/build-linux-aarch64 || true
+          ls -al release/work/build-linux-aarch64/dist-tar
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-linux-aarch64-intermediate
-          path: release/work/build-linux-aarch64/dist-tar/
+          path: release/work/build-linux-aarch64/dist-tar/dist.tar.gz
