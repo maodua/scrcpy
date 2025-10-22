@@ -41,8 +41,9 @@ jobs:
       - name: Install pip and meson compatible with Python 3.4
         run: |
           python3 -m ensurepip --default-pip || true
-          python3 -m pip install --upgrade 'pip<19.2' 'setuptools<45' 'wheel<0.35'
-          python3 -m pip install 'meson<0.54'
+          python3 -m pip install --upgrade 'pip<19.2'
+          python3 -m pip install 'setuptools==44.1.1'
+          python3 -m pip install 'meson<0.54' --no-use-pep517
 
 
       - name: Check architecture
