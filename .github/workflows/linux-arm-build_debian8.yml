@@ -40,6 +40,25 @@ jobs:
              libv4l-0 libv4l-dev libv4lconvert0 \
              libdigest-sha-perl
 
+      - name: Install newer GCC from backports
+        run: |
+          set -eux
+          apt-get -o Acquire::Check-Valid-Until=false -o Acquire::AllowInsecureRepositories=true update
+          if apt-get install -y --no-install-recommends --allow-unauthenticated -t jessie-backports gcc-8 g++-8; then
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 80
+            update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 80
+            echo "CC=gcc-8" >> $GITHUB_ENV
+            echo "CXX=g++-8" >> $GITHUB_ENV
+          else
+            apt-get install -y --no-install-recommends --allow-unauthenticated -t jessie-backports gcc-7 g++-7
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70
+            update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 70
+            echo "CC=gcc-7" >> $GITHUB_ENV
+            echo "CXX=g++-7" >> $GITHUB_ENV
+          fi
+          gcc --version
+          g++ --version
+
       - name: Build Python 3.5 from source
         run: |
           set -eux
