@@ -13,6 +13,8 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+      ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: 16
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
       - name: Fix APT sources (Debian 8 EOL)
         run: |
@@ -41,6 +43,16 @@ jobs:
              libv4l-0 libv4l-dev libv4lconvert0 \
              libdigest-sha-perl
 
+      - name: Install Node runtime for actions
+        run: |
+          set -eux
+          NODE_VERSION=16.20.2
+          ARCH=linux-arm64
+          mkdir -p /__e/node20/bin
+          cd /tmp
+          wget -q "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${ARCH}.tar.xz"
+          tar -xf "node-v${NODE_VERSION}-${ARCH}.tar.xz"
+          install "node-v${NODE_VERSION}-${ARCH}/bin/node" /__e/node20/bin/node
       - name: Build Python 3.5 from source
         run: |
           set -eux
