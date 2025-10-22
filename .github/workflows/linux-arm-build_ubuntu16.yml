@@ -45,6 +45,7 @@ jobs:
              git wget curl ca-certificates xz-utils unzip \
              build-essential pkg-config meson ninja-build nasm \
              autoconf automake libtool python3 python3-pip \
+             python3-setuptools python3-wheel \
              zlib1g-dev libjpeg-dev libudev-dev \
              ffmpeg libsdl2-2.0-0 libsdl2-dev \
              libavcodec-dev libavdevice-dev libavformat-dev libavutil-dev \
@@ -54,6 +55,7 @@ jobs:
 
       - name: Upgrade meson to support --pkg-config-path
         run: |
+          pip3 install --no-cache-dir 'pip<21' 'setuptools<50' 'wheel<0.35'
           pip3 install --no-cache-dir 'meson==0.55.3'
 
 
